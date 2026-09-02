@@ -3,41 +3,25 @@ module Subcommands.Encrypt where
 import Subcommands
 import Control.Lens (makeLenses)
 import Data.ByteString qualified as BS
-import Data.ByteString.Base64 qualified as BS64
+import Data.ByteString.Base64 qualified as B64
 import Data.Default
 import Data.ByteArray qualified as BA
 import System.Exit (exitSuccess)
 import Control.Monad (when)
 
-import Codec.Binary.Bech32 qualified as Bech32
-
 import Crypto.MAC.HMAC qualified as HMAC
 import Crypto.KDF.HKDF qualified as HKDF
 import Crypto.PubKey.Curve25519 qualified as X25519
 import Crypto.Cipher.ChaChaPoly1305 qualified as CCP
-import System.Random (genByteString, uniformByteString, getStdGen)
+import System.Random (uniformByteString, getStdGen)
 import Crypto.Error qualified as CE
 import qualified Data.Text as T
-import Data.Bool (bool)
-import Globals (publicHRP, header, nonceinfo, info, macexpand, maclength, wrap)
+import Globals
 import Crypto.Hash (SHA256)
 import Data.Binary.Put (runPut, putWord16be)
-import qualified Data.ByteString.Char8 as BS (putStrLn)
-import Control.Lens.Internal.CTypes (Word32)
-import Data.Text.Internal.Read (IParser(runP))
-import Debug.Trace (traceIO)
 import qualified Data.Text.Encoding as T
-
-data Encrypt = Encrypt
-  { __help      :: Bool
-  , _age        :: Bool
-  , _input      :: Maybe FilePath
-  , _recipents  :: [X25519.PublicKey]
-  }
-makeLenses ''Encrypt
-
-instance Default Encrypt where
-  def = Encrypt False False Nothing []
+import Data.Bool (bool)
+import qualified Codec.Binary.Bech32 as Bech32
 
 readPublicKey :: String -> X25519.PublicKey
 readPublicKey key = case Bech32.decode $ T.pack key of
@@ -52,11 +36,22 @@ readPublicKey key = case Bech32.decode $ T.pack key of
     (Bech32.humanReadablePartToText hrp == publicHRP)
   Left e -> error $ "failed reading public key: " <> show e
 
+data Encrypt = Encrypt
+  { __help      :: Bool
+  , _age        :: Bool
+  , _input      :: Maybe FilePath
+  , _recipents  :: [X25519.PublicKey]
+  }
+makeLenses ''Encrypt
+
+instance Default Encrypt where
+  def = Encrypt False False Nothing []
+
 instance Subcommand' Encrypt where
   names = ["e", "encrypt"]
   flags =
     [ (["-h", "--help"], "Display this message.", FlagBuilder $ ExistentialValue _help)
-    , (["-r", "--recipents", "--seal"], "Define (list of) recipents of the message.", FlagBuilder $ MultipleValues "RECIPENT" recipents readPublicKey)
+    , (["-r", "--recipent", "--seal"], "Define (list of) recipents of encrypted INPUT.", FlagBuilder $ MultipleValues "RECIPENT" recipents readPublicKey)
     , (["--age"], "generate an age-encrypted file instead of a sealed file.", FlagBuilder $ ExistentialValue age)
     ]
   args =
@@ -110,7 +105,7 @@ instance Subcommand' Encrypt where
         macKey :: BS.ByteString = HKDF.expand prk macexpand maclength
         mac = HMAC.hmac @BS.ByteString @BS.ByteString @SHA256 macKey payload
 
-    let file = BS64.encode $ BS.append payload (BA.convert mac)
+    let file = B64.encode $ BS.append payload (BA.convert mac)
     BS.putStr $ wrap "SEALED FILE" $ T.encodeUtf8 $ T.intercalate "\n" $ T.chunksOf 64 $ T.decodeUtf8 file
 instance CliParse Encrypt where
   cliParser = subcommandParser

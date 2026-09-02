@@ -66,6 +66,8 @@ executable seal
                     , Subcommands
                     , Subcommands.Decrypt
                     , Subcommands.Encrypt
+                    , Subcommands.Sign
+                    , Subcommands.Verify
                     , Subcommands.Keygen
 
     -- LANGUAGE extensions used by modules in this package.

@@ -8,29 +8,20 @@ import Subcommands
 import Data.Default
 import qualified Crypto.Error as CE
 import Data.Bool (bool)
-import qualified Codec.Binary.Bech32 as Bech32
-import qualified Data.Text as T
 import Globals
 import qualified Data.ByteString as BS
 import qualified Data.ByteArray as BA
 import System.Exit (exitSuccess)
 import Control.Monad (when, unless, forM, guard)
-import Data.Binary.Get (runGet, getBytes, getWord8, getWord32be, getWord16be, getRemainingLazyByteString, getByteString)
-import Debug.Trace (trace, traceShow, traceIO)
+import Data.Binary.Get (runGet, getWord8, getWord16be, getRemainingLazyByteString, getByteString)
 import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Char8 as BC
-import Data.Binary.Put (runPut, putWord16be)
 import Data.Maybe (listToMaybe)
-import Crypto.Hash (SHA256(SHA256))
+import Crypto.Hash (SHA256)
 import qualified Crypto.KDF.HKDF as HKDF
 import qualified Crypto.MAC.HMAC as HMAC
-
-data Decrypt = Decrypt
-  { __help    :: Bool
-  , _identity :: [X25519.SecretKey]
-  , _input    :: Maybe FilePath
-  }
-makeLenses ''Decrypt
+import qualified Codec.Binary.Bech32 as Bech32
+import Data.Text qualified as T
 
 readSecretKey :: String -> X25519.SecretKey
 readSecretKey key = case Bech32.decode $ T.pack key of
@@ -45,12 +36,21 @@ readSecretKey key = case Bech32.decode $ T.pack key of
     (Bech32.humanReadablePartToText hrp == T.toLower privateHRP)
   Left e -> error $ "failed reading public key: " <> show e
 
+data Decrypt = Decrypt
+  { __help    :: Bool
+  , _age      :: Bool
+  , _identity :: [X25519.SecretKey]
+  , _input    :: Maybe FilePath
+  }
+makeLenses ''Decrypt
+
 instance Default Decrypt where
-  def = Decrypt False [] Nothing
+  def = Decrypt False False [] Nothing
 instance Subcommand' Decrypt where
   names = ["d", "decrypt"]
   flags =
-    [ (["-i", "--identity"], "", FlagBuilder $ MultipleValues "IDENTITY" identity readSecretKey)
+    [ (["-i", "--identity"], "Define (list of) identities used to decrypt INPUT.", FlagBuilder $ MultipleValues "IDENTITY" identity readSecretKey)
+    , (["--age"], "decrypt an age-encrypted file instead of a sealed file.", FlagBuilder $ ExistentialValue age)
     ]
   args =
     [ ("INPUT", "File to decrypt. STDIN if not provided.", ArgBuilder $ ArgBuilder' input Just)
@@ -73,8 +73,8 @@ instance Subcommand' Decrypt where
           public_key <- getByteString $ fromIntegral public_len
           stanzas_count <- getWord16be
           stanzas <- forM [1..stanzas_count] . const $ do
-            v   <- getWord8
-            guard $ v == 0x01
+            v'   <- getWord8
+            guard $ v' == 0x01
             len <- getWord16be
             getByteString $ fromIntegral len
           body <- BS.toStrict <$> getRemainingLazyByteString

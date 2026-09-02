@@ -24,4 +24,4 @@ maclength :: Int
 maclength = 32
 
 wrap :: BS.ByteString -> BS.ByteString -> BS.ByteString
-wrap x s = "-----START " <> x <> "-----\n" <> s <> "\n-----END " <> x <> "-----"
+wrap x s = "-----BEGIN " <> x <> "-----\n" <> s <> "\n-----END " <> x <> "-----"

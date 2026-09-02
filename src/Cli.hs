@@ -13,6 +13,8 @@ import Subcommands.Encrypt (Encrypt)
 import Subcommands.Keygen (Keygen)
 import Data.List (intercalate)
 import Globals (globalName)
+import Subcommands.Verify (Verify(Verify))
+import Subcommands.Sign (Sign(Sign))
 
 
 segments :: String -> [String]
@@ -34,6 +36,8 @@ cmds :: [SubcommandW]
 cmds  = [ SubcommandW @Encrypt
         , SubcommandW @Decrypt
         , SubcommandW @Keygen
+        , SubcommandW @Sign
+        , SubcommandW @Verify
         ]
 
 instance CliParse Subcommand where
