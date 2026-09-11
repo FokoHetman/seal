@@ -64,6 +64,10 @@ executable seal
     other-modules:    Cli
                     , Globals
                     , Subcommands
+                    , Subcommands.Agent
+                    , Subcommands.Agent.Add
+                    , Subcommands.Agent.Spawn
+                    , Subcommands.Agent.Reload
                     , Subcommands.Decrypt
                     , Subcommands.Encrypt
                     , Subcommands.Sign
